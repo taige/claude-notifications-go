@@ -35,14 +35,15 @@ build: ## Build the binaries (development mode with debug symbols)
 	@go build -o $(LIST_SOUNDS_PATH) ./cmd/list-sounds
 	@echo "Build complete! Binaries in bin/"
 
-install-local: build ## Build and copy the binary into the Claude Code plugin cache
+install-local: ## Build the hook binary directly into the Claude Code plugin cache
 	@if [ ! -d "$(dir $(CACHE_BIN))" ]; then \
 		echo "Cache dir $(dir $(CACHE_BIN)) does not exist."; \
 		echo "Run ./scripts/dev-real-plugin.sh local first to bootstrap the cache for version $(PLUGIN_VERSION)."; \
 		exit 1; \
 	fi
-	@cp $(BINARY_PATH) $(CACHE_BIN)
-	@echo "✓ Synced $(BINARY_PATH) → $(CACHE_BIN)"
+	@echo "Building hook binary directly into $(CACHE_BIN)..."
+	@go build -o $(CACHE_BIN) ./cmd/claude-notifications
+	@echo "✓ Built into $(CACHE_BIN) (stub bin/$(BINARY) untouched)"
 	@echo "  Restart Claude Code to pick up the new build."
 
 build-all: ## Build optimized binaries for all platforms
