@@ -1,4 +1,4 @@
-.PHONY: build test test-race lint clean install help build-notifier \
+.PHONY: build test test-race lint clean install help build-notifier install-local \
 	dev-local-install dev-local-update dev-local-bootstrap dev-local-status dev-local-reset \
 	dev-real-local dev-real-remote dev-real-toggle dev-real-status \
 	e2e-status e2e-smoke e2e-smoke-installed e2e-manual e2e-manual-installed \
@@ -12,6 +12,16 @@ BINARY_PATH=bin/$(BINARY)
 SOUND_PREVIEW_PATH=bin/$(SOUND_PREVIEW)
 LIST_SOUNDS_PATH=bin/$(LIST_SOUNDS)
 
+# Local install: copies build output into the Claude Code plugin cache so the
+# real ~/.claude install runs your worktree binary (used together with
+# `scripts/dev-real-plugin.sh local`). Determines target dir from plugin.json
+# version, so a fork-local version like "1.38.1-taige" lands in its own cache
+# slot without overwriting the upstream-shipped binary.
+PLUGIN_VERSION := $(shell python3 -c "import json; print(json.load(open('.claude-plugin/plugin.json'))['version'])")
+GOOS_LOCAL := $(shell go env GOOS)
+GOARCH_LOCAL := $(shell go env GOARCH)
+CACHE_BIN := $(HOME)/.claude/plugins/cache/claude-notifications-go/claude-notifications-go/$(PLUGIN_VERSION)/bin/claude-notifications-$(GOOS_LOCAL)-$(GOARCH_LOCAL)
+
 # Build flags
 # Development build: includes debug symbols for debugging
 # Production build: optimized for size and deployment
@@ -24,6 +34,16 @@ build: ## Build the binaries (development mode with debug symbols)
 	@go build -o $(SOUND_PREVIEW_PATH) ./cmd/sound-preview
 	@go build -o $(LIST_SOUNDS_PATH) ./cmd/list-sounds
 	@echo "Build complete! Binaries in bin/"
+
+install-local: build ## Build and copy the binary into the Claude Code plugin cache
+	@if [ ! -d "$(dir $(CACHE_BIN))" ]; then \
+		echo "Cache dir $(dir $(CACHE_BIN)) does not exist."; \
+		echo "Run ./scripts/dev-real-plugin.sh local first to bootstrap the cache for version $(PLUGIN_VERSION)."; \
+		exit 1; \
+	fi
+	@cp $(BINARY_PATH) $(CACHE_BIN)
+	@echo "✓ Synced $(BINARY_PATH) → $(CACHE_BIN)"
+	@echo "  Restart Claude Code to pick up the new build."
 
 build-all: ## Build optimized binaries for all platforms
 	@echo "Building optimized release binaries for all platforms..."
