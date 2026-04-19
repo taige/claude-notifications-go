@@ -32,6 +32,9 @@ bin/ClaudeNotifications.app/
 # Local Claude Code project instructions (per-fork preference, not shared)
 CLAUDE.md
 
+# Claude Code worktree container (per-developer, not shared)
+.claude/
+
 # macOS ClaudeNotifier (built from swift-notifier/ or downloaded by install.sh)
 bin/ClaudeNotifier.app/
 swift-notifier/.build/
