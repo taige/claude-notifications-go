@@ -12,15 +12,20 @@ BINARY_PATH=bin/$(BINARY)
 SOUND_PREVIEW_PATH=bin/$(SOUND_PREVIEW)
 LIST_SOUNDS_PATH=bin/$(LIST_SOUNDS)
 
-# Local install: copies build output into the Claude Code plugin cache so the
-# real ~/.claude install runs your worktree binary (used together with
-# `scripts/dev-real-plugin.sh local`). Determines target dir from plugin.json
-# version, so a fork-local version like "1.38.1-taige" lands in its own cache
-# slot without overwriting the upstream-shipped binary.
-PLUGIN_VERSION := $(shell python3 -c "import json; print(json.load(open('.claude-plugin/plugin.json'))['version'])")
+# Local install: builds the hook binary straight into bin/ under the repo.
+# When the real ~/.claude uses a `directory` marketplace pointing at this repo
+# (via `scripts/dev-real-plugin.sh local`), Claude Code passes the repo path as
+# CLAUDE_PLUGIN_ROOT and runs bin/claude-notifications-<goos>-<goarch> directly
+# — the plugin cache slot is NOT consulted in this mode, so builds must land
+# in the repo's own bin/.
+#
+# The plugin.json version carries a `-taige` suffix (e.g. 1.38.1-taige) so
+# hook-wrapper's regex-based version check extracts the same `1.38.1` from
+# both plugin.json and the binary, preventing install.sh --force from
+# overwriting the local build with an upstream release.
 GOOS_LOCAL := $(shell go env GOOS)
 GOARCH_LOCAL := $(shell go env GOARCH)
-CACHE_BIN := $(HOME)/.claude/plugins/cache/claude-notifications-go/claude-notifications-go/$(PLUGIN_VERSION)/bin/claude-notifications-$(GOOS_LOCAL)-$(GOARCH_LOCAL)
+LOCAL_BIN := bin/claude-notifications-$(GOOS_LOCAL)-$(GOARCH_LOCAL)
 
 # Build flags
 # Development build: includes debug symbols for debugging
@@ -35,15 +40,10 @@ build: ## Build the binaries (development mode with debug symbols)
 	@go build -o $(LIST_SOUNDS_PATH) ./cmd/list-sounds
 	@echo "Build complete! Binaries in bin/"
 
-install-local: ## Build the hook binary directly into the Claude Code plugin cache
-	@if [ ! -d "$(dir $(CACHE_BIN))" ]; then \
-		echo "Cache dir $(dir $(CACHE_BIN)) does not exist."; \
-		echo "Run ./scripts/dev-real-plugin.sh local first to bootstrap the cache for version $(PLUGIN_VERSION)."; \
-		exit 1; \
-	fi
-	@echo "Building hook binary directly into $(CACHE_BIN)..."
-	@go build -o $(CACHE_BIN) ./cmd/claude-notifications
-	@echo "✓ Built into $(CACHE_BIN) (stub bin/$(BINARY) untouched)"
+install-local: ## Build the hook binary into bin/ for the current platform
+	@echo "Building hook binary into $(LOCAL_BIN)..."
+	@go build -o $(LOCAL_BIN) ./cmd/claude-notifications
+	@echo "✓ Built $(LOCAL_BIN)"
 	@echo "  Restart Claude Code to pick up the new build."
 
 build-all: ## Build optimized binaries for all platforms
